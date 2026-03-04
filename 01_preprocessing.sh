@@ -1,55 +1,62 @@
-cd ~/projects/javed/results/rrbs_javed_integragen
+cd ~/projects/epine/results/rrbs_epine_mgx
 source config
 echo ${gse}
 echo ${project}
 rsync -auvP ~/projects/${project}/results/${gse}/ cargo:~/projects/${project}/results/${gse}/
 
 
-# for idat from NCBI/GEO, go to 02_rnbeads_gseidat2study
-
+# For idat from NCBI/GEO, go to 02_rnbeads_gseidat2study
 # organize idat
 mkdir -p ~/projects/datashare/${gse}/raw
 cd ~/projects/datashare/${gse}/raw
 ls -lha ~/projects/datashare_epistorage/epic_lfs_diagenode/raw/raw_data/205045*/*.idat | wc
 ln -s ~/projects/datashare_epistorage/epic_lfs_diagenode/raw/raw_data/2050*/*.idat .
 ls -lha
+# rsync -auvP --exclude="raw_data" cargo:~/projects/datashare_epistorage/epic_lfs_diagenode/ ~/projects/datashare_epistorage/epic_lfs_diagenode/
 
-rsync -auvP --exclude="raw_data" cargo:~/projects/datashare_epistorage/epic_lfs_diagenode/ ~/projects/datashare_epistorage/epic_lfs_diagenode/
-
-
-
-
-
-# retrieve and organize RRBS fastq files
-rsync -auvP ~/projects/datashare/${gse}/raw/ cargo:~/projects/datashare/${gse}/raw/
-ssh cargo
+# For RRBS fastq files from NCBI/GEO,
+#   go to https://github.com/fchuffar/gse2study
+# organize fastq files.
 mkdir -p ~/projects/datashare/${gse}/raw
 cd ~/projects/datashare/${gse}/raw
 
-for srr in SRR3467835 SRR3467836 SRR3467837 SRR3467838 SRR3467839 SRR3467840 SRR3467841 SRR3467842 SRR3467843 
-do
-  echo ${srr}
-  prefetch $srr
-  vdb-validate $srr
-  parallel-fastq-dump --threads 16 --tmpdir /dev/shm --gzip --split-files --outdir ./ --sra-id ${srr}
-done
-exit 
+ln -s mgx8/E1_EPINE7_R1_001.fastq.gz    E001_EPINE07_R1.fastq.gz                 
+ln -s mgx8/E1_EPINE7_R2_001.fastq.gz    E001_EPINE07_R2.fastq.gz                 
+ln -s mgx8/E2_EPINE8_R1_001.fastq.gz    E002_EPINE08_R1.fastq.gz                 
+ln -s mgx8/E2_EPINE8_R2_001.fastq.gz    E002_EPINE08_R2.fastq.gz                 
+ln -s mgx8/G0_EPINE15_R1_001.fastq.gz   G000_EPINE15_R1.fastq.gz                 
+ln -s mgx8/G0_EPINE15_R2_001.fastq.gz   G000_EPINE15_R2.fastq.gz                 
+ln -s mgx8/G100_EPINE9_R1_001.fastq.gz  G100_EPINE09_R1.fastq.gz                 
+ln -s mgx8/G100_EPINE9_R2_001.fastq.gz  G100_EPINE09_R2.fastq.gz                 
+ln -s mgx8/G10_EPINE14_R1_001.fastq.gz  G010_EPINE14_R1.fastq.gz                 
+ln -s mgx8/G10_EPINE14_R2_001.fastq.gz  G010_EPINE14_R2.fastq.gz                 
+ln -s mgx8/G25_EPINE13_R1_001.fastq.gz  G025_EPINE13_R1.fastq.gz                 
+ln -s mgx8/G25_EPINE13_R2_001.fastq.gz  G025_EPINE13_R2.fastq.gz                 
+ln -s mgx8/G50_EPINE12_R1_001.fastq.gz  G050_EPINE12_R1.fastq.gz                 
+ln -s mgx8/G50_EPINE12_R2_001.fastq.gz  G050_EPINE12_R2.fastq.gz                 
+ln -s mgx8/G75_EPINE11_R1_001.fastq.gz  G075_EPINE11_R1.fastq.gz                 
+ln -s mgx8/G75_EPINE11_R2_001.fastq.gz  G075_EPINE11_R2.fastq.gz                 
+ln -s mgx8/G90_EPINE10_R1_001.fastq.gz  G090_EPINE10_R1.fastq.gz                 
+ln -s mgx8/G90_EPINE10_R2_001.fastq.gz  G090_EPINE10_R2.fastq.gz                 
+ln -s mgx8/p30_EPINE1_R1_001.fastq.gz   p030_EPINE01_R1.fastq.gz                 
+ln -s mgx8/p30_EPINE1_R2_001.fastq.gz   p030_EPINE01_R2.fastq.gz                 
+ln -s mgx8/p32_EPINE2_R1_001.fastq.gz   p032_EPINE02_R1.fastq.gz                 
+ln -s mgx8/p32_EPINE2_R2_001.fastq.gz   p032_EPINE02_R2.fastq.gz                 
+ln -s mgx8/p39_EPINE3_R1_001.fastq.gz   p039_EPINE03_R1.fastq.gz                 
+ln -s mgx8/p39_EPINE3_R2_001.fastq.gz   p039_EPINE03_R2.fastq.gz                 
+ln -s mgx8/p44_EPINE4_R1_001.fastq.gz   p044_EPINE04_R1.fastq.gz                 
+ln -s mgx8/p44_EPINE4_R2_001.fastq.gz   p044_EPINE04_R2.fastq.gz                 
+ln -s mgx8/p58_EPINE5_R1_001.fastq.gz   p058_EPINE05_R1.fastq.gz                 
+ln -s mgx8/p58_EPINE5_R2_001.fastq.gz   p058_EPINE05_R2.fastq.gz                 
+ln -s mgx8/p60_EPINE6_R1_001.fastq.gz   p060_EPINE06_R1.fastq.gz                 
+ln -s mgx8/p60_EPINE6_R2_001.fastq.gz   p060_EPINE06_R2.fastq.gz                 
 
-cd ~/projects/datashare/${gse}/raw
-md5sum *.fastq.gz > md5sum.bettik.txt 
-diff md5sum.bettik.txt md5sum.mgx.txt 
-rsync -auvP ~/projects/datashare/${gse}/ ~/projects/datashare_epistorage/${gse}/
-cd ~/projects/datashare_epistorage/${gse}/raw
-md5sum *.fastq.gz > md5sum.summer.txt 
-diff md5sum.bettik.txt md5sum.mgx.txt 
 
-
+# snakemake for RRBS pipeline 
 source ~/conda_config.sh
 conda activate rrbs_env 
-# launch bismark
-rsync -auvP ~/projects/${project}/results/${gse}/ cargo:~/projects/${project}/results/${gse}/
-ssh dahu
 snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --jobs 50 --cluster "oarsub --project epimed -l nodes=1/core={threads},walltime=6:00:00 " --latency-wait 60 -pn
+snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --cores 10  -p
 ssh cargo ls projects/datashare/${gse}
 mkdir -p ~/projects/datashare/${gse}/
 rsync -auvP cargo:projects/datashare/${gse}/multiqc_rrbs* ~/projects/datashare/${gse}/.
