@@ -9,11 +9,17 @@ def get_files(src_dir, src_suffix, dest_dir, dest_suffix):
   files = [x.replace(src_suffix, dest_suffix) for x in files ]
   return [os.path.expanduser(dest_dir+f) for f in files]
 
-bam_files = get_files("/home/fchuffar/projects/datashare/"+gse+"/raw/", "_val_1.fq.gz", "/home/fchuffar/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "_val_1_bismark_bt2_pe_sorted.bam")
-fastqc_files = get_files("/home/fchuffar/projects/datashare/"+gse+"/raw/", ".fastq.gz", "/home/fchuffar/projects/datashare/"+gse+"/raw/", "_fastqc.zip")
-trim_files = get_files("/home/fchuffar/projects/datashare/"+gse+"/raw/", "1.fastq.gz", "/home/fchuffar/projects/datashare/"+gse+"/raw/", "1_val_1.fq.gz")
-bw_files = get_files("/home/fchuffar/projects/datashare/"+gse+"/raw/", "_val_1.fq.gz", "/home/fchuffar/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "_val_1_bismark_bt2_pe_sorted_4_RPKM.bw")
-bw_bedgraph_files = get_files("/home/fchuffar/projects/datashare/"+gse+"/raw/", "_val_1.fq.gz", "/home/fchuffar/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "_val_1_bismark_bt2_pe_sortedbyname.bedGraph.bw")
+fastqcR1_files = get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1_fastqc.zip")
+fastqcR2_files = get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R2.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/raw/", "R2_fastqc.zip")
+trimR1_files = get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1_val_1.fq.gz")
+trimR2_files = get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R2.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/raw/", "R2_val_2.fq.gz")
+bam_files =         get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "R1_val_1_bismark_bt2_pe_sorted.bam")
+bw_files =          get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "R1_val_1_bismark_bt2_pe_sorted_4_RPKM.bw")
+bw_bedgraph_files = get_files("/home/chuffarf/projects/datashare/"+gse+"/raw/", "R1.fastq.gz", "/home/chuffarf/projects/datashare/"+gse+"/"+species+"_"+annotation+"_"+rwversion+".", "R1_val_1_bismark_bt2_pe_sortedbyname.bedGraph.bw")
+
+
+print(trimR1_files)
+print(trimR2_files)
 
 
 
@@ -22,38 +28,40 @@ rule target:
     threads: 1
     message: "-- Rule target completed. --"
     input: 
-      "/home/fchuffar/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/Sequence/WholeGenomeFasta/Bisulfite_Genome",
-      fastqc_files,
-      trim_files,
+      "/home/chuffarf/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/Sequence/WholeGenomeFasta/Bisulfite_Genome",
+      fastqcR1_files,
+      fastqcR2_files,
+      trimR1_files,
+      trimR2_files,
       bam_files,
       bw_files,
       bw_bedgraph_files,
 
 
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467835_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467836_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467837_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467838_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467839_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467840_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467841_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467842_1_fastqc.zip",
-     # "/home/fchuffar/projects/datashare/GSE80959/raw/SRR3467843_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467835_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467836_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467837_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467838_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467839_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467840_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467841_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467842_1_fastqc.zip",
+     # "/home/chuffarf/projects/datashare/GSE80959/raw/SRR3467843_1_fastqc.zip",
      #
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467835_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467836_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467837_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467838_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467839_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467840_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467841_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467842_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
-     # "/home/fchuffar/projects/datashare/GSE80959/SRR3467843_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467835_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467836_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467837_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467838_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467839_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467840_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467841_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467842_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
+     # "/home/chuffarf/projects/datashare/GSE80959/SRR3467843_1_trimmed_bismark_bt2_sortedbyname.bismark.cov.gz",
 
     shell:"""
-multiqc --force -o /home/fchuffar/projects/datashare/"""+gse+"""/ -n multiqc_rrbs \
-  /home/fchuffar/projects/datashare/"""+gse+"""/*.txt \
-  /home/fchuffar/projects/datashare/"""+gse+"""/raw/*_fastqc.zip \
+multiqc --force -o /home/chuffarf/projects/"""+project+"""/results/"""+gse+"""/ -n multiqc_rrbs \
+  /home/chuffarf/projects/datashare/"""+gse+"""/raw/*_fastqc.zip \
+#   /home/chuffarf/projects/datashare/"""+gse+"""/*.txt \
 
 echo workflow \"align_heatshock\" completed at `date` 
           """
@@ -100,7 +108,7 @@ rule align_PE_with_bismark:
     input:
       trimed_fq_gz_f="{prefix}/raw/{sample}_R1_val_1.fq.gz",
       trimed_fq_gz_r="{prefix}/raw/{sample}_R2_val_2.fq.gz",
-      bisulfite_genome_dir="/home/fchuffar/projects/datashare/genomes/{species}/{annotation}/{version}/Sequence/WholeGenomeFasta/Bisulfite_Genome"
+      bisulfite_genome_dir="/home/chuffarf/projects/datashare/genomes/{species}/{annotation}/{version}/Sequence/WholeGenomeFasta/Bisulfite_Genome"
     output:
       bam="{prefix}/{species}_{annotation}_{version}.{sample}_R1_val_1_bismark_bt2_pe_sorted.bam",
       bai="{prefix}/{species}_{annotation}_{version}.{sample}_R1_val_1_bismark_bt2_pe_sorted.bam.bai"
@@ -123,7 +131,7 @@ samtools index {output.bam}
 rule extract_meth_info_PE:
     input:  
       bam="{prefix}/{sample}_R1_val_1_bismark_bt2_pe_sorted.bam",
-      chrom_sizes="/home/fchuffar/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/"+rwversion+".chrom.sizes",
+      chrom_sizes="/home/chuffarf/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/"+rwversion+".chrom.sizes",
     output:
       sortedbyname_bam="{prefix}/{sample}_R1_val_1_bismark_bt2_pe_sortedbyname.bam",
       splitting_report="{prefix}/{sample}_R1_val_1_bismark_bt2_pe_sortedbyname_splitting_report.txt",
@@ -157,7 +165,7 @@ rule bismark_genome_preparation:
         bisulfite_genome_dir=directory("{prefix}/genomes/{species}/{annotation}/{version}/Sequence/WholeGenomeFasta/Bisulfite_Genome"),
     threads: 32
     shell:"""
-export PATH="/summer/epistorage/miniconda3/envs/rrbs_env/bin/:$PATH""
+export PATH="/summer/epistorage/miniconda3/envs/rrbs_env/bin/:$PATH"
 bismark_genome_preparation --parallel `echo "$(({threads} / 2))"` --bowtie2 {input.genome_fasta_dir}
 ls -lha {output.bisulfite_genome_dir}
     """
@@ -182,7 +190,7 @@ ls -lha {output.bisulfite_genome_dir}
 # rule align_SR_with_bismark:
 #     input:
 #       trimed_fq_gz="{prefix}/{sample}_trimmed.fq.gz",
-#       bisulfite_genome_dir="/home/fchuffar/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/Sequence/WholeGenomeFasta/Bisulfite_Genome/",
+#       bisulfite_genome_dir="/home/chuffarf/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/Sequence/WholeGenomeFasta/Bisulfite_Genome/",
 #     output:
 #       report=    "{prefix}/{sample}_trimmed_bismark_bt2_SE_report.txt",
 #       bam=       "{prefix}/{sample}_trimmed_bismark_bt2.bam",
@@ -191,13 +199,13 @@ ls -lha {output.bisulfite_genome_dir}
 #     threads: 16
 #     shell:    """
 # # cd /summer/epistorage/datashare/temporize_rrbs_mgx/
-# # bismark --multicore 8 -n 1 /home/fchuffar/projects/datashare/genomes/"""+species+"""/"""+annotation+"""/"""+rwversion+"""/Sequence/WholeGenomeFasta/ 17_S7_L001_R1_001_trimmed.fq.gz
+# # bismark --multicore 8 -n 1 /home/chuffarf/projects/datashare/genomes/"""+species+"""/"""+annotation+"""/"""+rwversion+"""/Sequence/WholeGenomeFasta/ 17_S7_L001_R1_001_trimmed.fq.gz
 # # samtools sort -@ 16 -T /dev/shm/17_S7_L001_R1_001_trimmed -o 17_S7_L001_R1_001_trimmed_bismark_bt2_sorted.bam 17_S7_L001_R1_001_trimmed_bismark_bt2.bam
 # # # rm 17_S7_L001_R1_001_trimmed_bismark_bt2.bam
 # # samtools index 17_S7_L001_R1_001_trimmed_bismark_bt2_sorted.bam
 # export PATH="/summer/epistorage/miniconda3/envs/rrbs_env/bin/:$PATH""
 # cd {wildcards.prefix}/
-# bismark --multicore `echo "$(({threads} / 2))"` -n 1 /home/fchuffar/projects/datashare/genomes/"""+species+"""/"""+annotation+"""/"""+rwversion+"""/Sequence/WholeGenomeFasta/ {input.trimed_fq_gz}
+# bismark --multicore `echo "$(({threads} / 2))"` -n 1 /home/chuffarf/projects/datashare/genomes/"""+species+"""/"""+annotation+"""/"""+rwversion+"""/Sequence/WholeGenomeFasta/ {input.trimed_fq_gz}
 # samtools sort -@ {threads} -T /dev/shm/{wildcards.sample} -o {output.sorted_bam} {output.bam}
 # # rm {output.bam}
 # samtools index {output.sorted_bam}
