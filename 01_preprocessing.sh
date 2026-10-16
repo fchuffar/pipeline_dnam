@@ -1,72 +1,81 @@
-cd ~/projects/epine/results/rrbs_epine_mgx
+# 00. cp 00_preprocessing.sh to customize it
+cp 01_preprocessing.sh 01_custom_preprocessing.sh
+open 01_custom_preprocessing.sh
+
+# 0. copy the correct config.XXX file
+cp config.hg38 config
+
+# 1. Set parameters there and in *config* file. 
+## The two main setable parameters are *project* (the global project) *gse* (the batch/run of fastq files)
+cd ~/projects/templeton/results/mcc_sa
 source config
-echo ${gse}
-echo ${project}
+echo $gse
+echo $project
+source ~/conda_config.sh 
+conda activate rrbs_env
+## push to dahu
 rsync -auvP ~/projects/${project}/results/${gse}/ cargo:~/projects/${project}/results/${gse}/
+## push to DRAC
+expect -c "
+spawn rsync -auvP /home/chuffarf/projects/${project}/results/${gse}/   drac:/home/chuffarf/projects/${project}/results/${gse}/ --exclude="macs3_output_merged"
+expect \"Passcode or option (1-2):\"
+send "${passcode}\\r"
+interact
+"
+# pull fron DRAC
+expect -c "
+spawn rsync -auvzP drac:/home/chuffarf/projects/${project}/results/${gse}/   /home/chuffarf/projects/${project}/results/${gse}/ --exclude=".snakemake" --exclude="slurm*" --dry-run         
+expect \"Passcode or option (1-2):\"
+send "${passcode}\\r"
+interact
+"
 
-
-# For idat from NCBI/GEO, go to 02_rnbeads_gseidat2study
-# organize idat
-mkdir -p ~/projects/datashare/${gse}/raw
-cd ~/projects/datashare/${gse}/raw
-ls -lha ~/projects/datashare_epistorage/epic_lfs_diagenode/raw/raw_data/205045*/*.idat | wc
-ln -s ~/projects/datashare_epistorage/epic_lfs_diagenode/raw/raw_data/2050*/*.idat .
-ls -lha
-# rsync -auvP --exclude="raw_data" cargo:~/projects/datashare_epistorage/epic_lfs_diagenode/ ~/projects/datashare_epistorage/epic_lfs_diagenode/
-
+# 2. Put raw fastq file in datashare/${gse}/raw
 # For RRBS fastq files from NCBI/GEO,
 #   go to https://github.com/fchuffar/gse2study
-# organize fastq files.
-mkdir -p ~/projects/datashare/${gse}/raw
-cd ~/projects/datashare/${gse}/raw
+ln -s ~/projects/datashare
+mkdir -p datashare/${gse}/raw
+cd datashare/${gse}/raw
+# done previously using https://github.com/fchuffar/gse2study/blob/master/01_preprocessing.sh ... 
+# ... or edit and bash design.sh
 
-ln -s mgx8/E1_EPINE7_R1_001.fastq.gz    E001_EPINE07_R1.fastq.gz                 
-ln -s mgx8/E1_EPINE7_R2_001.fastq.gz    E001_EPINE07_R2.fastq.gz                 
-ln -s mgx8/E2_EPINE8_R1_001.fastq.gz    E002_EPINE08_R1.fastq.gz                 
-ln -s mgx8/E2_EPINE8_R2_001.fastq.gz    E002_EPINE08_R2.fastq.gz                 
-ln -s mgx8/G0_EPINE15_R1_001.fastq.gz   G000_EPINE15_R1.fastq.gz                 
-ln -s mgx8/G0_EPINE15_R2_001.fastq.gz   G000_EPINE15_R2.fastq.gz                 
-ln -s mgx8/G100_EPINE9_R1_001.fastq.gz  G100_EPINE09_R1.fastq.gz                 
-ln -s mgx8/G100_EPINE9_R2_001.fastq.gz  G100_EPINE09_R2.fastq.gz                 
-ln -s mgx8/G10_EPINE14_R1_001.fastq.gz  G010_EPINE14_R1.fastq.gz                 
-ln -s mgx8/G10_EPINE14_R2_001.fastq.gz  G010_EPINE14_R2.fastq.gz                 
-ln -s mgx8/G25_EPINE13_R1_001.fastq.gz  G025_EPINE13_R1.fastq.gz                 
-ln -s mgx8/G25_EPINE13_R2_001.fastq.gz  G025_EPINE13_R2.fastq.gz                 
-ln -s mgx8/G50_EPINE12_R1_001.fastq.gz  G050_EPINE12_R1.fastq.gz                 
-ln -s mgx8/G50_EPINE12_R2_001.fastq.gz  G050_EPINE12_R2.fastq.gz                 
-ln -s mgx8/G75_EPINE11_R1_001.fastq.gz  G075_EPINE11_R1.fastq.gz                 
-ln -s mgx8/G75_EPINE11_R2_001.fastq.gz  G075_EPINE11_R2.fastq.gz                 
-ln -s mgx8/G90_EPINE10_R1_001.fastq.gz  G090_EPINE10_R1.fastq.gz                 
-ln -s mgx8/G90_EPINE10_R2_001.fastq.gz  G090_EPINE10_R2.fastq.gz                 
-ln -s mgx8/p30_EPINE1_R1_001.fastq.gz   p030_EPINE01_R1.fastq.gz                 
-ln -s mgx8/p30_EPINE1_R2_001.fastq.gz   p030_EPINE01_R2.fastq.gz                 
-ln -s mgx8/p32_EPINE2_R1_001.fastq.gz   p032_EPINE02_R1.fastq.gz                 
-ln -s mgx8/p32_EPINE2_R2_001.fastq.gz   p032_EPINE02_R2.fastq.gz                 
-ln -s mgx8/p39_EPINE3_R1_001.fastq.gz   p039_EPINE03_R1.fastq.gz                 
-ln -s mgx8/p39_EPINE3_R2_001.fastq.gz   p039_EPINE03_R2.fastq.gz                 
-ln -s mgx8/p44_EPINE4_R1_001.fastq.gz   p044_EPINE04_R1.fastq.gz                 
-ln -s mgx8/p44_EPINE4_R2_001.fastq.gz   p044_EPINE04_R2.fastq.gz                 
-ln -s mgx8/p58_EPINE5_R1_001.fastq.gz   p058_EPINE05_R1.fastq.gz                 
-ln -s mgx8/p58_EPINE5_R2_001.fastq.gz   p058_EPINE05_R2.fastq.gz                 
-ln -s mgx8/p60_EPINE6_R1_001.fastq.gz   p060_EPINE06_R1.fastq.gz                 
-ln -s mgx8/p60_EPINE6_R2_001.fastq.gz   p060_EPINE06_R2.fastq.gz                 
 
+# cd datashare/${gse}/raw
+# ls -lha datashare_epistorage/epic_lfs_diagenode/raw/raw_data/205045*/*.idat | wc
+# ln -s datashare_epistorage/epic_lfs_diagenode/raw/raw_data/2050*/*.idat .
+# ls -lha
+# # rsync -auvP --exclude="raw_data" cargo:datashare_epistorage/epic_lfs_diagenode/ datashare_epistorage/epic_lfs_diagenode/
 
 # snakemake for RRBS pipeline 
 source ~/conda_config.sh
 conda activate rrbs_env 
+cd ~/projects/${project}/results/${gse}/
+ls -lha datashare/${gse}/raw/*.fastq.gz
+# on a compute node
+snakemake -k -s ~/projects/${project}/results/${gse}/wf_test.py --cores 8  -pn # 3G per node
+# on GRICAD
 snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --jobs 50 --cluster "oarsub --project epimed -l nodes=1/core={threads},walltime=6:00:00 " --latency-wait 60 -pn
-snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --cores 10  -p
+# on DRAC
+snakemake -k -s wf_rrbs.py --jobs 50 --core 32 --cluster-cancel "scancel" --cluster "sbatch --account=def-trasler --time=6:0:0 \
+  --mem-per-cpu=12G --nodes=1 --ntasks=1 --cpus-per-task={threads} " \
+  --latency-wait 60 -pn
+
+snakemake -k -s wf_rrbs.py --jobs 50 --core 32 --cluster-cancel "scancel" --cluster "sbatch --account=def-trasler --time=6:0:0 \
+  --mem-per-cpu=3G --nodes=1 --ntasks=1 --cpus-per-task={threads} " \
+  --latency-wait 60 -pn
+
+
+
 ssh cargo ls projects/datashare/${gse}
-mkdir -p ~/projects/datashare/${gse}/
-rsync -auvP cargo:projects/datashare/${gse}/multiqc_rrbs* ~/projects/datashare/${gse}/.
-rsync -auvP cargo:projects/datashare/${gse}/*sorted.bam* ~/projects/datashare/${gse}/.
-rsync -auvP cargo:projects/datashare/${gse}/*bismark.cov.gz ~/projects/datashare/${gse}/.
-open ~/projects/datashare/${gse}/multiqc_rrbs.html
+mkdir -p datashare/${gse}/
+rsync -auvP cargo:projects/datashare/${gse}/multiqc_rrbs* datashare/${gse}/.
+rsync -auvP cargo:projects/datashare/${gse}/*sorted.bam* datashare/${gse}/.
+rsync -auvP cargo:projects/datashare/${gse}/*bismark.cov.gz datashare/${gse}/.
+open datashare/${gse}/multiqc_rrbs.html
 
 # export PATH="/summer/epistorage/miniconda3/bin:/summer/epistorage/opt/bin:$PATH"
 # cd /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/
-# bismark --multicore `echo "$((16 / 2))"` -n 1 ~/projects/datashare/genomes/Rattus_norvegicus/UCSC/rn6/Sequence/WholeGenomeFasta/   -1 /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1.fq.gz     -2 /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R2_001_val_2.fq.gz
+# bismark --multicore `echo "$((16 / 2))"` -n 1 datashare/genomes/Rattus_norvegicus/UCSC/rn6/Sequence/WholeGenomeFasta/   -1 /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1.fq.gz     -2 /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R2_001_val_2.fq.gz
 # samtools sort -@ 16 -T /dev/shm/F3C7_S19 -o /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1_bismark_bt2_pe_sorted.bam /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1_bismark_bt2_pe.bam
 # # rm /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1_bismark_bt2_pe.bam
 # samtools index /home/fchuffar/projects/datashare/rrbs_symer_mgx/raw/F3C7_S19_R1_001_val_1_bismark_bt2_pe_sorted.bam
@@ -119,3 +128,84 @@ rsync -auvP cargo:projects/${project}/results/${gse}/combp_vignettes/*.regions-p
 
 
 
+
+
+
+
+
+
+Shell command: 
+set +u
+source ~/conda_config.sh 
+conda activate rrbs_env
+set -u
+
+# PARAMS
+USER=chuffarf
+# GO
+PREFIXGENOME=Homo_sapiens_UCSC_hg38
+SCRATCHDIR=$(find /localscratch -maxdepth 1 -type d -name "$USER.*" | head -n 1)"/"
+echo $SCRATCHDIR
+rm -Rf $SCRATCHDIR 
+TRIMR1=test_R1_val_1.fq.gz
+TRIMR2=test_R2_val_2.fq.gz
+# TRIMR1=test_R1.fastq.gz 
+rsync -auvP  /home/chuffarf/projects/templeton/results/mcc_sa/tmp/raw/$TRIMR1 /home/chuffarf/projects/templeton/results/mcc_sa/tmp/raw/$TRIMR2  $SCRATCHDIR
+cd $SCRATCHDIR
+bismark --multicore 4  --non_directional   --prefix $PREFIXGENOME   ~/projects/datashare/genomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta   $SCRATCHDIR$TRIMR1  $SCRATCHDIR$TRIMR2
+cat Homo_sapiens_UCSC_hg38.test_R1_val_1_bismark_bt2_SE_report.txt  | grep eff
+
+
+#   --bowtie2 -N 0 -L 20 -X 1000 -p 3 
+
+samtools sort -@ 16 -T $SCRATCHDIR/test   -o $SCRATCHDIR/$PREFIXGENOME.test_R1_val_1_bismark_bt2_sorted.bam   $SCRATCHDIR/$PREFIXGENOME.test_R1_val_1_bismark_bt2.bam
+samtools index $SCRATCHDIR/$PREFIXGENOME.test_R1_val_1_bismark_bt2_sorted.bam
+rsync -auvP $SCRATCHDIR/$PREFIXGENOME.test_R1_val_1_bismark_bt2_*.* /home/chuffarf/projects/templeton/results/mcc_sa/tmp
+
+
+
+
+
+rm -Rf tmp/Homo_sapiens_UCSC_hg38.test_R1_val_1_bismark_bt2_* /localscratch/chuffarf.*/*
+
+
+cd ~/projects/templeton/results/mcc_sa
+rm -Rf tmp/Homo_sapiens_UCSC_hg38.test_R1_val_1_bismark_bt2_*
+snakemake -s ~/projects/${project}/results/${gse}/wf_test.py --cores 2  -p
+
+cat tmp/Homo_sapiens_UCSC_hg38.test_R1_val_1_bismark_bt2_SE_report.txt  | grep eff
+
+
+cd /localscratch/chuffarf.23124222.0/
+
+
+
+
+
+rm -Rf /localscratch/chuffarf.*/Hom* 
+
+set +u
+source ~/conda_config.sh 
+conda activate rrbs_env
+set -u
+
+# PARAMS
+USER=chuffarf
+# GO
+PREFIXGENOME=Homo_sapiens_UCSC_hg38
+SCRATCHDIR=$(find /localscratch -maxdepth 1 -type d -name "$USER.*" | head -n 1)"/"
+echo $SCRATCHDIR
+TRIMR1=test_R1_val_1.fq.gz
+TRIMR2=test_R2_val_2.fq.gz
+rsync -auvP  /home/chuffarf/projects/templeton/results/mcc_sa/tmp/raw/$TRIMR1 /home/chuffarf/projects/templeton/results/mcc_sa/tmp/raw/$TRIMR2  $SCRATCHDIR
+cd $SCRATCHDIR
+echo "TMPDIR=$TMPDIR"
+which bismark bowtie2 samtools
+bismark --version; samtools --version | head -1
+ls -la $SCRATCHDIR
+df -h $SCRATCHDIR
+(bismark --multicore `echo "$((2 / 2))"`   --non_directional   --prefix $PREFIXGENOME   ~/projects/datashare/genomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta   $SCRATCHDIR$TRIMR1 2>&1) > log2.snk.txt
+
+
+/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/bin/bash -euo pipefail -c 'PREFIXGENOME=Homo_sapiens_UCSC_hg38 ; bismark --multicore 1   --non_directional   --prefix Homo_sapiens_UCSC_hg38   ~/projects/datashare/genomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta test_R1_val_1.fq.gz' < /dev/null
+/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/bin/bash -euo pipefail -c '...' < /dev/null
