@@ -1,0 +1,33 @@
+# Samples
+
+This section defines the experimental design and associates each sample with its corresponding sequencing files:
+
+- `samples.R` contains the sample-specific information and defines the `samples` variable used throughout the pipeline.
+- The `e` data frame defines the **experimental grouping**, with one row per sample and columns pointing to the corresponding BigWig (`bw`) and BAM (`bam`) files and factors if needed.
+- The `gsm` column stores the GEO sample like identifiers, which are also used as row names to uniquely identify each sample.
+- The file paths are constructed dynamically from the dataset (`gse`), sample name (`samples`), species, annotation, genome version, and sequencing configuration.
+
+```{r sample_R}
+source("samples.R")
+e = data.frame(
+  gsm = samples,
+  bam = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sorted.bam"),
+  bw = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sorted_4_RPKM.bw"),
+  covgz = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sortedbyname.bismark.cov.gz")
+)
+rownames(e) = e$gsm
+e$null = factor(1)
+factoi = c()
+```
+
+```{r exp_grp}
+if (file.exists("exp_grp.R")) {
+  source("exp_grp.R")
+}
+```
+
+```{r echo=TRUE, results="verbatim"}
+head(e)
+dim(e)
+```
+
