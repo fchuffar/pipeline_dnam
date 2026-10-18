@@ -52,7 +52,8 @@ conda activate rrbs_env
 cd ~/projects/${project}/results/${gse}/
 ls -lha datashare/${gse}/raw/*.fastq.gz
 # on a compute node
-snakemake -k -s ~/projects/${project}/results/${gse}/wf_test.py --cores 8  -pn # 3G per node
+# snakemake -k -s ~/projects/${project}/results/${gse}/wf_test.py --cores 8  -pn # 3G per node
+snakemake -k -s ~/projects/${project}/results/${gse}/wf_rrbs.py --cores 16  -pn # 8 cores option needs 3G per node
 # on GRICAD
 snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --jobs 50 --cluster "oarsub --project epimed -l nodes=1/core={threads},walltime=6:00:00 " --latency-wait 60 -pn
 # on DRAC
