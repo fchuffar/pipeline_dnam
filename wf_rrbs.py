@@ -26,12 +26,12 @@ rule target:
     message: "-- Rule target completed. --"
     input: 
       # "/home/chuffarf/projects/datashare/genomes/"+species+"/"+annotation+"/"+rwversion+"/Sequence/WholeGenomeFasta/Bisulfite_Genome",
-      # fastqcR1_files,
-      # fastqcR2_files,
-      # trimR1_files,
-      # trimR2_files,
-      # bam_files,
-      # bw_files,
+      fastqcR1_files,
+      fastqcR2_files,
+      trimR1_files,
+      trimR2_files,
+      bam_files,
+      bw_files,
       bw_bedgraph_files,
 
       # # for testing...
@@ -50,6 +50,8 @@ OMP_NUM_THREADS=1
 multiqc --force -o /home/chuffarf/projects/"""+project+"""/results/"""+gse+"""/ -n multiqc_rrbs \
   /home/chuffarf/projects/datashare/"""+gse+"""/raw/*_fastqc.zip \
 #   /home/chuffarf/projects/datashare/"""+gse+"""/*.txt \
+
+Rscript -e 'rmarkdown::render("10_material_and_methods.Rmd", output_file="material_and_methods.html", output_dir="/home/chuffarf/projects/datashare/"""+gse+"""/")'
 
           """
 
@@ -93,7 +95,7 @@ DEDUP_REPORT={wildcards.sample}_R1_val_1_bismark_bt2_pe_sortedbyname.deduplicati
 COV2CYTO_OUTPUT={wildcards.sample}_R1_val_1_bismark_bt2_pe_sortedbyname.deduplicated
 MERGEDCOV_GZ={wildcards.sample}_R1_val_1_bismark_bt2_pe_sortedbyname.deduplicated.CpG_report.merged_CpG_evidence.cov.gz
 
-rsync -auvP {input.bam} $SCRATCHDIR
+rsync -auv {input.bam} $SCRATCHDIR
 ls -lha $SCRATCHDIR
 cd $SCRATCHDIR
 
@@ -110,7 +112,7 @@ echo "Merge CpGs..."
 coverage2cytosine --merge_CpGs --gzip -g {input.genome_dir} -o $COV2CYTO_OUTPUT  $COV_GZ
 gzip -d -k $BEDGRAPH_GZ
 bedGraphToBigWig $BEDGRAPH {input.chrom_sizes} $BEDGRAPH_BW
-rsync -auvP $DEDUP_REPORT $SPLITTING_REPORT $MBIAS_TXT $BEDGRAPH_GZ $BEDGRAPH_BW $MERGEDCOV_GZ {wildcards.prefix}
+rsync -auv $DEDUP_REPORT $SPLITTING_REPORT $MBIAS_TXT $BEDGRAPH_GZ $BEDGRAPH_BW $MERGEDCOV_GZ {wildcards.prefix}
 rm -Rf $SCRATCHDIR/*{wildcards.sample}*
     """
 
@@ -163,20 +165,20 @@ echo $SCRATCHDIR
 ls -lha $SCRATCHDIR
 TRIMR1={wildcards.sample}_R1_val_1.fq.gz
 TRIMR2={wildcards.sample}_R2_val_2.fq.gz
-rsync -auvP  {wildcards.prefix}/raw/$TRIMR1 {wildcards.prefix}/raw/$TRIMR2  $SCRATCHDIR
+rsync -auv  {wildcards.prefix}/raw/$TRIMR1 {wildcards.prefix}/raw/$TRIMR2 $SCRATCHDIR
 ls -lha $SCRATCHDIR
 cd $SCRATCHDIR
 bismark --multicore `echo "$(({threads} / 2))"` \
   --non_directional \
   --prefix $PREFIXGENOME \
   ~/projects/datashare/genomes/{wildcards.species}/{wildcards.annotation}/{wildcards.version}/Sequence/WholeGenomeFasta/ \
-  -1 $SCRATCHDIR$TRIMR1 \
-  -2 $SCRATCHDIR$TRIMR2
-samtools sort -@ {threads} -T $SCRATCHDIR/{wildcards.sample} \
-  -o $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe_sorted.bam \
-  $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe.bam
-samtools index $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe_sorted.bam
-rsync -auvP $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*_*.* {wildcards.prefix}
+  -1 $TRIMR1 \
+  -2 $TRIMR2
+samtools sort -@ {threads} -T {wildcards.sample} \
+  -o $PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe_sorted.bam \
+  $PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe.bam
+samtools index $PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_pe_sorted.bam
+rsync -auv $PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*_*.* {wildcards.prefix}
               """
 
 # rule align_SE_with_bismark:
@@ -204,7 +206,7 @@ rsync -auvP $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*_
 # echo $SCRATCHDIR
 # TRIMR1={wildcards.sample}_R1_val_1.fq.gz
 # TRIMR2={wildcards.sample}_R2_val_2.fq.gz
-# rsync -auvP  {wildcards.prefix}/raw/$TRIMR1 {wildcards.prefix}/raw/$TRIMR2  $SCRATCHDIR
+# rsync -auv  {wildcards.prefix}/raw/$TRIMR1 {wildcards.prefix}/raw/$TRIMR2  $SCRATCHDIR
 # cd $SCRATCHDIR
 # bismark --multicore `echo "$(({threads} / 2))"` \
 #   --non_directional \
@@ -215,7 +217,7 @@ rsync -auvP $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*_
 #   -o $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_sorted.bam \
 #   $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2.bam
 # samtools index $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_sorted.bam
-# rsync -auvP $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*.* {wildcards.prefix}
+# rsync -auv $SCRATCHDIR/$PREFIXGENOME.{wildcards.sample}_R1_val_1_bismark_bt2_*.* {wildcards.prefix}
 #               """
 
 rule trim_with_trim_galore_PE:
