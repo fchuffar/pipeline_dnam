@@ -13,7 +13,7 @@ e = data.frame(
   gsm = samples,
   bam = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sorted.bam"),
   bw = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sorted_4_RPKM.bw"),
-  covgz = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sortedbyname.bismark.cov.gz")
+  covgz = paste0("/home/chuffarf/projects/datashare/", gse, "/", species, "_", annotation, "_", version, ".", samples, "_R1_val_1_bismark_bt2_", tolower(sr_or_pe), "_sortedbyname.deduplicated.CpG_report.merged_CpG_evidence.cov.gz")
 )
 rownames(e) = e$gsm
 e$null = factor(1)

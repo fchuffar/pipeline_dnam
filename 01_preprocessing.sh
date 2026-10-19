@@ -57,7 +57,7 @@ snakemake -k -s ~/projects/${project}/results/${gse}/wf_rrbs.py --cores 16  -pn 
 # on GRICAD
 snakemake -s ~/projects/${project}/results/${gse}/wf_rrbs.py --jobs 50 --cluster "oarsub --project epimed -l nodes=1/core={threads},walltime=6:00:00 " --latency-wait 60 -pn
 # on DRAC
-snakemake -k -s wf_rrbs.py --jobs 50 --core 32 --cluster-cancel "scancel" --cluster "sbatch --account=def-trasler --time=6:0:0 \
+snakemake -k -s wf_rrbs.py --jobs 200 --core 32 --cluster-cancel "scancel" --cluster "sbatch --account=def-trasler --time=6:0:0 \
   --mem-per-cpu=12G --nodes=1 --ntasks=1 --cpus-per-task={threads} " \
   --latency-wait 60 -pn
 
