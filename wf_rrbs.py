@@ -51,7 +51,9 @@ multiqc --force -o /home/chuffarf/projects/"""+project+"""/results/"""+gse+"""/ 
   /home/chuffarf/projects/datashare/"""+gse+"""/raw/*_fastqc.zip \
 #   /home/chuffarf/projects/datashare/"""+gse+"""/*.txt \
 
-Rscript -e 'rmarkdown::render("10_material_and_methods.Rmd", output_file="material_and_methods.html", output_dir="/home/chuffarf/projects/datashare/"""+gse+"""/")'
+Rscript -e 'rmarkdown::render("10_material_and_methods.Rmd", output_format="html_document", output_file="material_and_methods_"""+gse+""".html", output_dir="/home/chuffarf/projects/datashare/"""+gse+"""/")'
+Rscript -e 'rmarkdown::render("10_material_and_methods.Rmd", output_format="pdf_document",  output_file="material_and_methods_"""+gse+""".pdf" , output_dir="/home/chuffarf/projects/datashare/"""+gse+"""/")'
+Rscript -e 'rmarkdown::render("10_material_and_methods.Rmd", output_format="word_document", output_file="material_and_methods_"""+gse+""".doc" , output_dir="/home/chuffarf/projects/datashare/"""+gse+"""/")'
 
           """
 
