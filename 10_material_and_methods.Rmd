@@ -16,75 +16,152 @@ knitr::opts_chunk$set(collapse=TRUE, comment = "#>", fig.width=9, fig.height=6, 
 source("config")
 # Safeguards: variables that may be missing from 'config'
 if (!exists("sequencer")) sequencer = "<SEQUENCER>"
-if (!exists("seqlen"))    seqlen    = "<READ_LENGTH>"
+if (!exists("seqlen")) seqlen = "<READ_LENGTH>"
+if (!exists("conda_env")) conda_env = "rrbs_env"
+```
+
+```{r software_versions, echo=FALSE, eval=TRUE}
+# Retrieve the versions of the software tools actually installed.
+# Strategy: 1) 'conda list' of the environment 'conda_env' (reflects what the workflow ran with),
+#           2) fallback on the '--version' output of the command found in the PATH.
+# NB: knit this vignette from a shell where the conda environment is activated
+#     (or make sure 'conda' is available) to get all the versions.
+
+conda_list = tryCatch({
+  out = suppressWarnings(system2("conda", c("list", "-n", conda_env), stdout=TRUE, stderr=FALSE))
+  out = trimws(out[!grepl("^#", out) & nzchar(out)])
+  fields = strsplit(out, "\\s+")
+  setNames(sapply(fields, `[`, 2), sapply(fields, `[`, 1))
+}, error=function(e) character(0))
+
+cmd_version = function(cmd, args="--version") {
+  if (!nzchar(Sys.which(cmd))) return(NA_character_)
+  out = tryCatch(suppressWarnings(system2(cmd, args, stdout=TRUE, stderr=TRUE)), error=function(e) character(0))
+  out = paste(out, collapse="\n")
+  m = regmatches(out, regexec("(?i)version:?\\s*v?([0-9]+(\\.[0-9]+)+)", out, perl=TRUE))[[1]]
+  if (length(m) >= 2) return(m[2])
+  m = regmatches(out, regexpr("[0-9]+(\\.[0-9]+)+", out))
+  if (length(m)) return(m[1])
+  NA_character_
+}
+
+get_version = function(pkg, cmd=pkg, args="--version") {
+  ver = if (pkg %in% names(conda_list)) unname(conda_list[pkg]) else NA_character_
+  if (is.na(ver)) ver = cmd_version(cmd, args)
+  ver
+}
+
+# tool label, conda package, command used as a fallback
+tools = data.frame(
+  key     = c("fastqc", "multiqc", "trimgalore", "cutadapt", "bismark", "bowtie2", "samtools", "bg2bw", "deeptools", "snakemake", "slurm"),
+  tool    = c("FastQC", "MultiQC", "Trim Galore", "Cutadapt", "Bismark", "Bowtie2", "samtools", "bedGraphToBigWig", "deepTools", "Snakemake", "SLURM"),
+  pkg     = c("fastqc", "multiqc", "trim-galore", "cutadapt", "bismark", "bowtie2", "samtools", "ucsc-bedgraphtobigwig", "deeptools", "snakemake", NA),
+  cmd     = c("fastqc", "multiqc", "trim_galore", "cutadapt", "bismark", "bowtie2", "samtools", "bedGraphToBigWig", "bamCoverage", "snakemake", "sbatch"),
+  stringsAsFactors = FALSE
+)
+tools$version = sapply(seq_len(nrow(tools)), function(i) {
+  ver = if (!is.na(tools$pkg[i])) get_version(tools$pkg[i], tools$cmd[i]) else cmd_version(tools$cmd[i])
+  ver
+})
+tools$version[tools$key == "slurm"] = sub("^slurm\\s*", "", tools$version[tools$key == "slurm"])
+
+# R and conda
+r_version = paste(R.version$major, R.version$minor, sep=".")
+conda_version = cmd_version("conda")
+
+# Named list used inline in the text: `r v$bismark`
+v = as.list(setNames(tools$version, tools$key))
+v = lapply(v, function(x) if (is.na(x)) "<VERSION>" else x)
+v$conda = ifelse(is.na(conda_version), "<VERSION>", conda_version)
+v$R = r_version
 ```
 
 # Material and Methods
 
-
 **Quality control of raw reads**
 
-The quality of the raw fastq files (R1 and R2) was assessed using `FastQC` [https://www.bioinformatics.babraham.ac.uk/projects/fastqc/. Accessed 19 Oct. 2026.]. Reports of all samples were aggregated using `MultiQC` (Ewels et al. 2016) [PMID: 27312411].
+The quality of the raw fastq files (R1 and R2) was assessed using `FastQC` v`r v$fastqc` [https://www.bioinformatics.babraham.ac.uk/projects/fastqc/. Accessed 19 Oct. 2026.]. Reports of all samples were aggregated using `MultiQC` v`r v$multiqc` (Ewels et al. 2016) [PMID: 27312411].
 
 **Trimming**
 
-The raw paired-end fastq files were quality- and adapter-trimmed using `Trim Galore` [https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/. Accessed 19 Oct. 2026.] (a wrapper around `Cutadapt` (Martin 2011) [doi: 10.14806/ej.17.1.200]), with options `--paired --fastqc --cores 4`. Only read pairs for which both mates passed the filters were kept (validated pairs, `*_R1_val_1.fq.gz` and `*_R2_val_2.fq.gz`). A second `FastQC` report was generated on the trimmed reads.
+The raw paired-end fastq files were quality- and adapter-trimmed using `Trim Galore` v`r v$trimgalore` [https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/. Accessed 19 Oct. 2026.] (a wrapper around `Cutadapt` v`r v$cutadapt` (Martin 2011) [doi: 10.14806/ej.17.1.200]), with options `--paired --fastqc --cores 4`. Only read pairs for which both mates passed the filters were kept (validated pairs, `*_R1_val_1.fq.gz` and `*_R2_val_2.fq.gz`). A second `FastQC` report was generated on the trimmed reads.
 
 **Bisulfite genome preparation**
 
-The `r annotation` `r species` `r version` reference genome was converted *in silico* into its bisulfite counterparts (C-to-T and G-to-A conversions) and indexed using `bismark_genome_preparation` (Krueger and Andrews 2011) [PMID: 21493656], with option `--bowtie2`.
+The `r annotation` `r species` `r version` reference genome was converted *in silico* into its bisulfite counterparts (C-to-T and G-to-A conversions) and indexed using `bismark_genome_preparation` (`Bismark` suite v`r v$bismark`; Krueger and Andrews 2011) [PMID: 21493656], with option `--bowtie2`.
 
 **Alignment**
 
-The trimmed paired-end reads were aligned on the `r annotation` `r species` `r version` bisulfite genome using `Bismark` (Krueger and Andrews 2011) [PMID: 21493656] with the `Bowtie2` aligner (Langmead and Salzberg 2012) [PMID: 22388286], with options `--non_directional --multicore 16`. The `--non_directional` mode allows reads to align to any of the four possible bisulfite strands.
+The trimmed paired-end reads were aligned on the `r annotation` `r species` `r version` bisulfite genome using `Bismark` v`r v$bismark` (Krueger and Andrews 2011) [PMID: 21493656] with the `Bowtie2` v`r v$bowtie2` aligner (Langmead and Salzberg 2012) [PMID: 22388286], with options `--non_directional --multicore 16`. The `--non_directional` mode allows reads to align to any of the four possible bisulfite strands.
 
-Resulting BAM files were coordinate-sorted and indexed using `samtools sort` and `samtools index` (Li et al. 2009) [PMID: 19505943].
+Resulting BAM files were coordinate-sorted and indexed using `samtools sort` and `samtools index` (`samtools` v`r v$samtools`; Li et al. 2009) [PMID: 19505943].
 
 **Deduplication**
 
-BAM files were sorted by read name using `samtools sort -n`, and duplicated read pairs (same alignment start position) were removed using `deduplicate_bismark` with option `-p` (paired-end mode).
+BAM files were sorted by read name using `samtools sort -n`, and duplicated read pairs (same alignment start position) were removed using `deduplicate_bismark` (`Bismark` suite v`r v$bismark`) with option `-p` (paired-end mode).
 
 **Methylation calling**
 
-Cytosine methylation calls were extracted from the deduplicated BAM files using `bismark_methylation_extractor` (Krueger and Andrews 2011) [PMID: 21493656], with options `--bedGraph --counts --gzip --comprehensive --parallel 32`. Methylation calls of all contexts (CpG, CHG, CHH) were pooled into one file per strand-specific context (`--comprehensive`). This step produced, for each sample:
+Cytosine methylation calls were extracted from the deduplicated BAM files using `bismark_methylation_extractor` (`Bismark` suite v`r v$bismark`; Krueger and Andrews 2011) [PMID: 21493656], with options `--bedGraph --counts --gzip --comprehensive --parallel 32`. Methylation calls of all contexts (CpG, CHG, CHH) were pooled into one file per strand-specific context (`--comprehensive`). This step produced, for each sample:
 
 - a splitting report (`*.deduplicated_splitting_report.txt`),
+
 - an M-bias report (`*.deduplicated.M-bias.txt`),
+
 - a deduplication report (`*.deduplication_report.txt`),
+
 - a bedGraph file of the CpG methylation levels (`*.deduplicated.bedGraph.gz`),
+
 - a coverage file (`*.deduplicated.bismark.cov.gz`).
 
 **CpG strand merging**
 
-CpG methylation counts of the two strands of each CpG dinucleotide were merged into a single CpG-level evidence using `coverage2cytosine` (from the `Bismark` suite) with options `--merge_CpGs --gzip` and the `r annotation` `r species` `r version` genome sequence (`merged_CpG_evidence.cov.gz` files).
+CpG methylation counts of the two strands of each CpG dinucleotide were merged into a single CpG-level evidence using `coverage2cytosine` (from the `Bismark` suite v`r v$bismark`) with options `--merge_CpGs --gzip` and the `r annotation` `r species` `r version` genome sequence (`merged_CpG_evidence.cov.gz` files).
 
 **Processed data files format and content**
 
 - BAM files (`.bam`, `.bai`): deduplicated and sorted aligned reads,
+
 - bedGraph files (`.bedGraph.gz`): CpG methylation level (percentage) per position,
-- big wig files (`.bw`): bedGraph files converted using `bedGraphToBigWig` (Kent et al. 2010) [PMID: 20639541] and the chromosome size file of the `r version` genome (`r version`.chrom.sizes),
+
+- big wig files (`.bw`): bedGraph files converted using `bedGraphToBigWig` v`r v$bg2bw` (Kent et al. 2010) [PMID: 20639541] and the chromosome size file of the `r version` genome (`r version`.chrom.sizes),
+
 - coverage files (`.merged_CpG_evidence.cov.gz`): strand-merged methylated and unmethylated CpG counts per position (chromosome, start, end, methylation percentage, count methylated, count unmethylated).
 
 **Read coverage tracks**
 
-<!-- This section applies only if the `bw_files` target is activated in wf_rrbs.py -->
-Read coverage signal was computed from the sorted BAM files using `bamCoverage` (from the `deepTools` suite (Ramirez et al. 2014) [PMID: 24799436]), with options `--binSize 4 --minMappingQuality 30 --normalizeUsing RPKM`.
+Read coverage signal was computed from the sorted BAM files using `bamCoverage` (from the `deepTools` suite v`r v$deeptools` (Ramirez et al. 2014) [PMID: 24799436]), with options `--binSize 4 --minMappingQuality 30 --normalizeUsing RPKM`.
 
 **Workflow management and computing environment**
 
-The whole analysis was orchestrated using `Snakemake` (Mölder et al. 2021) [PMID: 34035898]. Software tools were run in a dedicated `conda` environment (`rrbs_env`). Computing jobs were scheduled using `SLURM`, with intermediate files processed on node-local scratch storage.
+The whole analysis was orchestrated using `Snakemake` v`r v$snakemake` (Mölder et al. 2021) [PMID: 34035898]. Software tools were run in a dedicated `conda` v`r v$conda` environment (`r conda_env`). Computing jobs were scheduled using `SLURM` v`r v$slurm`, with intermediate files processed on node-local scratch storage. Statistical analyses and report generation were performed using `R` v`r v$R`.
 
-The workflow code is available at [https://github.com/fchuffar/pipeline_rnbeads](https://github.com/fchuffar/pipeline_rnbeads).
+The workflow code is available at [https://github.com/fchuffar/pipeline_dnam](https://github.com/fchuffar/pipeline_dnam).
+
+# Software versions
+
+```{r software_table, results="asis"}
+tab = rbind(
+  data.frame(Software=tools$tool, Version=ifelse(is.na(tools$version), "not found", tools$version)),
+  data.frame(Software=c("conda", "R"), Version=c(ifelse(is.na(conda_version), "not found", conda_version), r_version))
+)
+tab = tab[order(tab$Software), ]
+rownames(tab) = NULL
+knitr::kable(tab)
+```
+
+Versions were retrieved automatically from the `r conda_env` conda environment (`conda list`) or, when unavailable, from the `--version` output of the tools found in the `PATH`. The `bismark_genome_preparation`, `deduplicate_bismark`, `bismark_methylation_extractor` and `coverage2cytosine` tools belong to the `Bismark` suite and share its version.
 
 # Grant and Acknowledgements
 
-All (or most of) the computations presented here were performed using 
+All (or most of) the computations presented here were performed using
+
 the Digital Research Alliance of Canada infrastructure (DRAC, https://www.alliancecan.ca/)
+
 <!--the Grenoble Alpes Research – Computing and Data Infrastructure (GRICAD, https://gricad.univ-grenoble-alpes.fr), which is supported by Grenoble research communities.-->
 
 # Session Information
 
 ```{r results="verbatim"}
 sessionInfo()
-date()
 ```
