@@ -7,7 +7,7 @@ cp config.hg38 config
 
 # 1. Set parameters there and in *config* file. 
 ## The two main setable parameters are *project* (the global project) *gse* (the batch/run of fastq files)
-cd ~/projects/templeton/results/mcc_sa
+cd ~/projects/templeton/results/EGAD00001005795
 source config
 echo $gse
 echo $project
