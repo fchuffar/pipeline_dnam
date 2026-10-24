@@ -1,5 +1,5 @@
-gse="rrbs_epine_mgx"
-project="epine"
+gse="EGAD00001005795"
+project="templeton"
 species="Homo_sapiens"
 version="hg38"
 annotation="UCSC"

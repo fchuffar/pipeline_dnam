@@ -67,6 +67,21 @@ snakemake -k -s wf_rrbs.py --jobs 50 --core 32 --cluster-cancel "scancel" --clus
 
 
 
+
+
+COMPUTEFRAGESIZE=TRUE; rmarkdown::render("02_fraglen.Rmd")
+
+
+
+
+
+
+
+
+
+
+
+
 ssh cargo ls projects/datashare/${gse}
 mkdir -p datashare/${gse}/
 rsync -auvP cargo:projects/datashare/${gse}/multiqc_rrbs* datashare/${gse}/.
