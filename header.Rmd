@@ -1,0 +1,13 @@
+```{r, echo=FALSE, eval=TRUE}
+knitr::opts_chunk$set(collapse=TRUE, comment = "#>", fig.width=9, fig.height=6, eval=TRUE, echo=FALSE, results="hide")
+source("common.R")
+source("config")
+library(GenomicRanges)
+```
+
+# Pipeline Initialization
+
+This section initializes the environment required for the analysis:
+
+- `common.R` contains the utility functions used throughout the pipeline.
+- `config` contains the dataset-specific parameters used by the script, such as the project name, dataset name, and species.
