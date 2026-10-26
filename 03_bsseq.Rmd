@@ -36,7 +36,7 @@ library(bsseq)
 library(BiocParallel)
 register(SerialParam(), default = TRUE)
 
-bs <- bsseq::read.bismark(
+bs = bsseq::read.bismark(
     files = e$covgz,
     colData = e,
     rmZeroCov = FALSE,
@@ -92,7 +92,7 @@ bs = readRDS("bs.rds")
 
 ## Fingerprint (CpG coverage)
 
-```{r fingerprint}
+```{r fingerprint, eval=TRUE}
 cov = bsseq::getCoverage(bs)
 data = as.matrix(t(cov))
 # Compute cumulative signal fractions for each row
@@ -115,20 +115,75 @@ for (foi in c("null", fois)) {
 
 
 
-```{r pca}
+```{r beta_matrix}
+library(GenomicRanges)
+# Extract methylation beta values
 beta = bsseq::getMeth(bs, type = "raw")
+rownames(beta) = paste0(seqnames(bs), ":", start(bs))
+sum(is.na(beta))
+
+# Extract methylation M-values (logit(beta))
+M   = bsseq::getCoverage(bs, type = "M")
+Cov = bsseq::getCoverage(bs, type = "Cov")
+U   = Cov - M
+# Pseudo-count alpha (commonly 0.5 or 1)
+alpha = 1
+mval = log2((M + alpha) / (U + alpha))
+rownames(mval) = paste0(seqnames(bs), ":", start(bs))
+
+# Mask cells with coverage below 5x
+beta[Cov < 5] = NA
+mval[is.na(beta)] = NA
+sum(is.na(beta))
+
+# Per-site mean across all remaining non-NA samples
+row_means_beta = rowMeans(beta, na.rm = TRUE)
+row_means_mval = rowMeans(mval, na.rm = TRUE)
+
+# Linear indices of the NA cells, and the row (site) each one belongs to
+na_idx  = which(is.na(beta))
+na_rows = (na_idx - 1L) %% nrow(beta) + 1L
+
+# Replace each NA by the mean of its own site
+beta[na_idx] = row_means_beta[na_rows]
+mval[na_idx] = row_means_mval[na_rows]
+
+# Checks
+sum(is.na(beta))                  # should be 0
+sum(is.na(mval))                  # should be 0
+stopifnot(!anyNA(row_means_beta))      # a NaN here would mean a site with no valid value at all
+stopifnot(!anyNA(row_means_mval))      # a NaN here would mean a site with no valid value at all
+
+dim(beta)
+head(beta)
+saveRDS(beta, paste0("datashare/", gse, "/beta_matrix.rds"))
+
+dim(mval)
+head(mval)
+saveRDS(mval, paste0("datashare/", gse, "/mval_matrix.rds"))
+
 meth = list(
-#  mvalues = logit(beta),
+  mval = mval,
   beta = beta
 )
 
+```
+
+```{r pca, results="verbatim"}
 for (k in names(meth)) {
   print(k)
   data = as.matrix(t(meth[[k]]))
-  data = data[,!apply(is.na(data), 2, any)]
+  dim(data)
+  # data = data[,!apply(is.na(data), 2, any)]
+  # dim(data)
   pca = prcomp(data, scale=FALSE)
   v = pca$sdev * pca$sdev
   p = v / sum(v) * 100
+
+  nbpcs = 10
+  pcs = pca$x[, 1:nbpcs]
+  saveRDS(pcs, paste0("e_pcs_", k, ".rds"))
+  # Variance of sample covariates explained by cumulative principal components
 
   fois = factoi[sapply(factoi, function(fa) {class(e[[fa]])})=="factor"]
   for (foi in c("null", fois)) {
@@ -169,24 +224,21 @@ for (k in names(meth)) {
 
 
 ```{r}
-# Extract methylation beta values
-beta = bsseq::getMeth(bs, type = "raw")
-rownames(beta) = paste0(seqnames(bs), ":", start(bs))
-dim(beta)
-head(beta)
-saveRDS(beta, "beta_matrix.rds")
-beta = apply(mod=10000, as.matrix(beta), 1, mean)
+meanbeta = apply(as.matrix(beta), 1, mean)
 
 layout(matrix(1:2, 1), respect=TRUE)
 
 # Plot global beta distribution
-hist(as.vector(beta),
+hist(as.vector(meanbeta),
      breaks = 100,
      col = "grey70",
      border = NA,
      xlab = "Beta value",
      ylab = "Frequency",
      main = "DNA methylation distribution")
+
+
+
 
 # library(bsseq)
 library(GenomicRanges)
@@ -210,12 +262,143 @@ hist(log10(d),
 
 
 
-# PCA
+# Latent Factors
+
+```{r latent factor, results="verbatim", eval=TRUE}
+# Binary covariate coded 0/1 
+e$smoking01 = as.numeric(e$smoking) - 1
+
+for (k in names(meth)) {
+  print(k)
+  data = as.matrix(t(meth[[k]]))
+  dim(data)
+
+  ### LF with lfmm
+  # Center each site: lfmm has no intercept and tot must be a centered variance
+  Y = scale(data, center = TRUE, scale = FALSE)
+  X = as.matrix(e[rownames(Y), c("age", "BMI", "smoking01", "log2DDEugg44")])
+  stopifnot(!anyNA(X), !anyNA(Y))
+
+  lfmm_fit = lfmm::lfmm_ridge(Y = Y, X = X, K = 10, lambda = 1e-5)
+  U = lfmm_fit$U # latent factors
+  V = lfmm_fit$V # loadings
+  rownames(U) = rownames(Y)
+  rownames(V) = colnames(Y)
+  colnames(U) = paste0("LF", seq_len(ncol(U)))
+  saveRDS(scale(U), paste0("e_lfs_", k, ".rds"))
+
+  # Total variance of the centered Y
+  tot = sum(Y^2)
+
+  # Squared singular values of U V^T = eigenvalues of (U'U)(V'V)
+  ev = sort(Re(eigen(crossprod(U) %*% crossprod(V))$values), decreasing = TRUE)
+
+  pct_lf = 100 * ev / tot
+  names(pct_lf) = paste0("LF", seq_along(pct_lf))
+  print(round(pct_lf, 2))
+
+  # Cumulative percentage
+  print(round(cumsum(pct_lf), 2))
+
+  barplot(pct_lf, ylab = "% of variance explained", xlab = "latent factors", main = k)
+}
+```
 
 
 
+```{r results="verbatim"}
+for (prfx in c("pcs", "lfs")) {
+  print(prfx)
+  for (k in names(meth)) {
+    print(k) 
+    layout(matrix(1:6,2), respect=TRUE)
+    # First nbpc PCs (columns are named PC1, PC2, PC3, PC4, PC5, PC6)
+    pcs = readRDS(paste0("e_", prfx, "_", k, ".rds"))
 
 
+    res = do.call(rbind, lapply(factoi, function(f) {
+      y = e[rownames(pcs), f]
+
+      # Binary categorical variable -> 0/1 coding
+      if (is.character(y) || is.factor(y)) {
+        y = factor(y)
+        if (nlevels(y) != 2) {
+          message("Skipping ", f, ": ", nlevels(y), " levels (binary or numeric only)")
+          return(NULL)
+        }
+        y = as.numeric(y) - 1
+      }
+
+      # Drop samples with missing values for this variable
+      ok = !is.na(y)
+
+      do.call(rbind, lapply(1:ncol(pcs), function(k) {
+        d   = data.frame(y = y[ok], pcs[ok, 1:k, drop = FALSE])
+        s   = summary(lm(y ~ ., data = d))
+        fs  = s$fstatistic
+        data.frame(
+          variable = f,
+          n        = sum(ok),
+          PCs      = ifelse(k == 1, "PC1", paste0("PC1-PC", k)),
+          r2       = round(s$r.squared, 3),
+          adj_r2   = round(s$adj.r.squared, 3),
+          p_value  = signif(pf(fs[1], fs[2], fs[3], lower.tail = FALSE), 3),
+          row.names = NULL
+        )
+      }))
+    }))
+
+    # Cumulative number of PCs (1..nbpcs) for each variable, based on the row order of res
+    res$k = ave(seq_len(nrow(res)), res$variable, FUN = seq_along)
+
+    vars = unique(res$variable)
+    xlim = range(res$k)
+
+    # One panel per variable, extra right margin for the second y axis
+    layout(matrix(1:6,2), respect=TRUE)
+
+    for (v in vars) {
+      d = res[res$variable == v, ]
+
+      # Left axis: R2 (solid) and adjusted R2 (dashed)
+      plot(
+        d$k, d$r2, type = "b", pch = 16, col = "steelblue",
+        xlim = xlim, ylim = range(c(0, d$r2, d$adj_r2)),
+        xaxt = "n", xlab = "Number of PCs (PC1 to PCk)", ylab = "R2",
+        main = paste0(v, " (n=", d$n[1], ")")
+      )
+      axis(1, at = d$k)
+      lines(d$k, d$adj_r2, type = "b", pch = 1, lty = 2, col = "steelblue")
+      abline(h = 0, col = "grey80")
+
+      # Right axis: p-value on a log scale, overlaid on the same panel
+      par(new = TRUE)
+      plot(
+        d$k, d$p_value, type = "b", pch = 17, col = "firebrick",
+        log = "y", xlim = xlim, ylim = c(min(1e-3, d$p_value), 1),
+        axes = FALSE, xlab = "", ylab = ""
+      )
+      axis(4, col.axis = "firebrick", col = "firebrick")
+      mtext("p-value (log scale)", side = 4, line = 3, col = "firebrick", cex = 0.8)
+
+      # Significance threshold
+      abline(h = 0.05, col = "firebrick", lty = 3)
+
+      # Legend only once
+      if (v == vars[1]) {
+        legend(
+          "topleft", bty = "n", cex = 0.7,
+          legend = c("R2", "adjusted R2", "p-value", "p = 0.05"),
+          col = c("steelblue", "steelblue", "firebrick", "firebrick"),
+          pch = c(16, 1, 17, NA), lty = c(1, 2, 1, 3)
+        )
+      }
+    }
+  }
+}
+
+
+```
 
 # Session Information
 
