@@ -265,8 +265,44 @@ hist(log10(d),
 # Latent Factors
 
 ```{r latent factor, results="verbatim", eval=TRUE}
-# Binary covariate coded 0/1 
-e$smoking01 = as.numeric(e$smoking) - 1
+
+# Build a numeric covariate matrix from factoi:
+# numeric columns are kept, 2-level factors/characters are coded 0/1,
+# everything else (NA, >2 levels, constant) is skipped
+X_list = list()
+
+for (f in colnames(e)) {
+  y = e[[f]]
+
+  # Skip covariates with missing values (lfmm and DSS need complete data)
+  if (anyNA(y)) {
+    message("Skipping ", f, ": contains NA")
+    next
+  }
+
+  if (is.numeric(y)) {
+    # Numeric covariate (e.g. age): keep as is
+    X_list[[f]] = y
+  } else {
+    y = factor(y)
+    if (nlevels(y) == 2) {
+      # Binary covariate: first level = 0, second level = 1
+      X_list[[f]] = as.numeric(y) - 1
+      message(f, ": ", levels(y)[1], " = 0, ", levels(y)[2], " = 1")
+    } else {
+      message("Skipping ", f, ": ", nlevels(y), " levels")
+    }
+  }
+}
+
+X_robust = as.matrix(data.frame(X_list, row.names = rownames(e), check.names = FALSE))
+
+# Checks
+dim(X_robust)
+colnames(X_robust)
+stopifnot(!anyNA(X_robust))
+
+
 
 for (k in names(meth)) {
   print(k)
@@ -276,7 +312,7 @@ for (k in names(meth)) {
   ### LF with lfmm
   # Center each site: lfmm has no intercept and tot must be a centered variance
   Y = scale(data, center = TRUE, scale = FALSE)
-  X = as.matrix(e[rownames(Y), c("age", "BMI", "smoking01", "log2DDEugg44")])
+  X = X_robust[rownames(Y),]
   stopifnot(!anyNA(X), !anyNA(Y))
 
   lfmm_fit = lfmm::lfmm_ridge(Y = Y, X = X, K = 10, lambda = 1e-5)

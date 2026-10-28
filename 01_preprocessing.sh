@@ -70,11 +70,27 @@ snakemake -k -s wf_rrbs.py --jobs 50 --core 32 --cluster-cancel "scancel" --clus
 
 
 COMPUTEFRAGESIZE=TRUE; rmarkdown::render("02_fraglen.Rmd")
+COUNT=TRUE; prefix = 'peaks5'; rmarkdown::render("02_fraglen.Rmd")
 
 
 
 
-
+for MODELFORMULA in age BMI smoking log2DDEugg44 age+BMI+smoking+log2DDEugg44 BMI+age+smoking+log2DDEugg44 smoking+age+BMI+log2DDEugg44 log2DDEugg44+age+BMI+smoking
+# for MODELFORMULA in hiloDEE hiloDDE+age+BMI+smoking
+# for MODELFORMULA in smoking
+do 
+  echo " 
+    model_formula='~${MODELFORMULA}'; 
+    prefix = 'peaks5'; 
+    gse='mcc_sa'; 
+    model_func_name='dss'; 
+    pval_thresh="0.05";
+    rmarkdown::render ('04_da_custom.Rmd', 
+      output_file=paste0('04_da_custom_',    gse, '_', prefix, '_', model_func_name, '_', model_formula, '.html')) ; 
+    rmarkdown::render ('04_combp_custom.Rmd', 
+      output_file=paste0('04_combp_custom_', gse, '_', prefix, '_', model_func_name, '_', model_formula, '_', pval_thresh, '.html')) ; 
+  "   | Rscript -
+done
 
 
 
