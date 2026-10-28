@@ -16,7 +16,7 @@ output:
 
 ```{r}
 # features
-if (!exists("prefix"))             prefix = "peaks5"  ;
+if (!exists("prefix"))             prefix = "epic"  ;
 prefix2 = "combp"
 ```
 
@@ -33,10 +33,10 @@ prefix2 = "combp"
 
 
 ```{r inputs}
-if (!exists("gse"))             gse = "EGAD00001005795"  ;
-if (!exists("model_func_name")) model_func_name = "dss"         ;
+if (!exists("gse"))             gse = "AlphaSperm"  ;
+if (!exists("model_func_name")) model_func_name = "minfi"         ;
 if (!exists("model_formula"))   model_formula = "~age"                     ;
-if (!exists("pval_thresh"))     pval_thresh = "1e-25"                     ;
+if (!exists("pval_thresh"))     pval_thresh = "1e-20"                     ;
 prefix3 = paste0(model_func_name, "_", model_formula, "_", pval_thresh)
 pheno_key = strsplit(model_formula, "~|\\+")[[1]][2]
 
