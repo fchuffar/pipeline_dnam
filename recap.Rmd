@@ -1,0 +1,274 @@
+---
+title: "Compare `combp` DMRs across models and datasets"
+author: "Florent Chuffart"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r header, child="header.Rmd"}
+```
+
+```{r params}
+if (!exists("base_dir")) {base_dir = "~/projects/templeton/results"}
+if (!exists("datasets")) {datasets = c("AlphaSperm", "EGAD00001005795")}
+if (!exists("pattern")) {pattern = "^dmrcombp.*\\.regions-t\\.bed$"}
+if (!exists("EXPORT_XLSX")) {EXPORT_XLSX = FALSE}
+```
+
+- `base_dir` = "`r base_dir`" is the folder containing one sub-folder of results per dataset.
+- `datasets` = `r paste(datasets, collapse = ", ")`.
+- `EXPORT_XLSX` = `r EXPORT_XLSX` controls whether the per-model result tables are merged in a single Excel workbook (`FALSE` by default).
+
+
+# Load `combp` DMRs
+
+One `.regions-t.bed` file per model and per dataset. The model name is extracted from the file name (the part after `~`) and prefixed by the dataset name.
+
+```{r load_dmrs, results="verbatim"}
+files = unlist(lapply(datasets, function(ds) {
+  list.files(file.path(base_dir, ds), pattern = pattern, full.names = TRUE)
+}))
+
+models = basename(files)
+models = sub("^.*~", "", models)
+models = sub("\\.regions-t\\.bed$", "", models)
+models = paste0(basename(dirname(files)), "_", models)
+
+dmrs = lapply(files, function(f) {
+  print(f)
+  read.table(f, header = FALSE, sep = "\t")
+})
+names(dmrs) = models
+
+# Dataset of each model
+dataset_of = setNames(basename(dirname(files)), models)
+
+
+
+# Sort models by dataset, then by formula, then by numeric threshold
+ds = dataset_of[models]
+
+# Model name without the dataset prefix
+model_only = unname(mapply(function(m, d) sub(paste0("^", d, "_"), "", m), models, ds))
+
+# Threshold = trailing "_<number>", plain (0.05) or scientific (1e-5, 1e-10)
+thr_regex = "_([0-9.]+([eE][-+]?[0-9]+)?)$"
+has_thr = grepl(thr_regex, model_only)
+threshold = rep(NA_real_, length(model_only))
+threshold[has_thr] = as.numeric(sub(paste0("^.*", thr_regex), "\\1", model_only[has_thr]))
+
+# Formula = model name without the threshold
+formula_only = sub(thr_regex, "", model_only)
+
+# Ascending threshold (1e-20 first); use -threshold for the strictest last
+ord = order(factor(ds, levels = datasets), formula_only, threshold, na.last = TRUE)
+models = models[ord]
+dmrs = dmrs[models]
+
+# Check the result
+print(data.frame(dataset = ds[ord], formula = formula_only[ord], threshold = threshold[ord], row.names = NULL))
+```
+
+
+# Number of DMRs per model
+
+```{r recap, results="verbatim"}
+recap = data.frame(
+  model   = models,
+  dataset = dataset_of[models],
+  nb_DMR  = sapply(dmrs, nrow),
+  row.names = NULL
+)
+print(recap, row.names = FALSE)
+write.csv(recap, "dmr_recap.csv", row.names = FALSE)
+```
+
+```{r recap_barplot, fig.width=12, fig.height=8}
+library(ggplot2)
+
+# Barplot: keep the same order as models (first model on top)
+p = ggplot(recap, aes(x = factor(model, levels = rev(models)), y = nb_DMR, fill = dataset)) +
+  geom_col() +
+  geom_text(aes(label = nb_DMR), hjust = -0.2, size = 3) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(x = NULL, y = "Number of DMRs", fill = "Dataset") +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    legend.position = "top"
+  )
+print(p)
+ggsave("dmr_counts_barplot.pdf", p, width = 12, height = 8)
+```
+
+
+# Overlap between models
+
+## Pairwise comparison
+
+A region of A is *common* if it overlaps at least one region of B (same chromosome, overlapping intervals).
+
+```{r overlap_function}
+# Count regions in A overlapping at least one region in B
+count_overlap = function(a, b) {
+  sum(sapply(seq_len(nrow(a)), function(i) {
+    any(b[[1]] == a[i, 1] &
+        b[[2]] < a[i, 3] &
+        b[[3]] > a[i, 2])
+  }))
+}
+```
+
+```{r pairwise, results="verbatim"}
+pairs = combn(models, 2, simplify = FALSE)
+
+comparisons = do.call(rbind, lapply(pairs, function(p) {
+  a = dmrs[[p[1]]]
+  b = dmrs[[p[2]]]
+
+  n_common_a = count_overlap(a, b)
+  n_common_b = count_overlap(b, a)
+
+  data.frame(
+    model_A  = p[1],
+    model_B  = p[2],
+    n_A      = nrow(a),
+    n_B      = nrow(b),
+    common_A = n_common_a,
+    common_B = n_common_b,
+    unique_A = nrow(a) - n_common_a,
+    unique_B = nrow(b) - n_common_b
+  )
+}))
+
+print(comparisons, row.names = FALSE)
+write.csv(comparisons, "dmr_pairwise.csv", row.names = FALSE)
+```
+
+## Heatmap of the percentage of overlapping DMRs
+
+Each cell gives the percentage of DMRs of the model in row (A) overlapping at least one DMR of the model in column (B). The matrix is therefore not symmetric.
+
+```{r overlap_matrix}
+n = length(models)
+overlap_mat = matrix(
+  NA_real_,
+  nrow = n,
+  ncol = n,
+  dimnames = list(models, models)
+)
+
+for (i in seq_along(models)) {
+  for (j in seq_along(models)) {
+    a = dmrs[[i]]
+    b = dmrs[[j]]
+    if (nrow(a) > 0) {
+      overlap_mat[i, j] = 100 * count_overlap(a, b) / nrow(a)
+    }
+  }
+}
+
+# Long format for ggplot
+heatmap_df = as.data.frame(as.table(overlap_mat))
+colnames(heatmap_df) = c("model_A", "model_B", "overlap")
+# Heatmap: keep the dataset order in the facets (alphabetical by default)
+heatmap_df$type_A = factor(dataset_of[as.character(heatmap_df$model_A)], levels = datasets)
+heatmap_df$type_B = factor(dataset_of[as.character(heatmap_df$model_B)], levels = datasets)
+```
+
+```{r overlap_heatmap, fig.width=16, fig.height=12}
+# White = exactly 0, then lightgrey -> steelblue for non-zero values
+p = ggplot(heatmap_df, aes(x = model_B, y = model_A, fill = overlap)) +
+  geom_tile(color = "grey90", linewidth = 0.2) +
+  scale_fill_gradientn(
+    # Sharp step right above 0: white at 0, lightgrey just after, steelblue at 100
+    colours = c("white", "white", "lightgrey", "steelblue"),
+    values  = scales::rescale(c(0, 0.01, 0.02, 100), from = c(0, 100)),
+    limits  = c(0, 100),
+    name    = "Overlapping\nDMRs (%)",
+    na.value = "grey90"
+  ) +
+  facet_grid(type_A ~ type_B, scales = "free", space = "free") +
+  coord_equal() +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7),
+    axis.text.y = element_text(size = 7),
+    axis.title  = element_blank(),
+    panel.grid  = element_blank(),
+    strip.text  = element_text(face = "bold"),
+    legend.position = "right"
+  )
+print(p)
+ggsave("dmr_overlap_heatmap.pdf", plot = p, width = 16, height = 12)
+```
+
+
+# Merge result tables in a single Excel workbook
+
+Optional step (`EXPORT_XLSX = TRUE`): one sheet per model, plus an `INDEX` sheet linking sheet names to the original files.
+
+```{r export_xlsx, eval=EXPORT_XLSX, results="verbatim"}
+library(readxl)
+library(openxlsx)
+
+files_xlsx = list(
+  mcc  = list.files(file.path(base_dir, "mcc_sa"),
+                    pattern = "^global_results_peaks5_.*\\.xlsx$", full.names = TRUE),
+  chip = list.files(file.path(base_dir, "chip_sa"),
+                    pattern = "^dmrcombp_peaks5_deseq2_.*\\.xlsx$", full.names = TRUE)
+)
+
+wb = createWorkbook()
+index = data.frame(sheet = character(), dataset = character(), filename = character())
+
+i = 0
+for (prefix in names(files_xlsx)) {
+  for (f in files_xlsx[[prefix]]) {
+    i = i + 1
+
+    # Extract the model formula from the filename
+    model = basename(f)
+    model = sub("\\.xlsx$", "", model)
+    model = sub("^global_results_peaks5_~", "", model)
+    model = sub("^dmrcombp_peaks5_deseq2_~", "", model)
+    model = sub("_0\\.05$", "", model)
+
+    # Excel sheet names are limited to 31 characters
+    sheet = paste0(prefix, "_", sprintf("%02d", i), "_", substr(model, 1, 20))
+    message("Importing: ", basename(f), " -> ", sheet)
+
+    df = read_excel(f)
+    addWorksheet(wb, sheet)
+    writeData(wb, sheet, df, withFilter = TRUE)
+    freezePane(wb, sheet, firstRow = TRUE)
+
+    index = rbind(index, data.frame(
+      sheet    = sheet,
+      dataset  = basename(dirname(f)),
+      filename = basename(f)
+    ))
+  }
+}
+
+addWorksheet(wb, "INDEX")
+writeData(wb, "INDEX", index, withFilter = TRUE)
+setColWidths(wb, "INDEX", cols = 1:3, widths = "auto")
+
+output = file.path(base_dir, "all_DMR_results.xlsx")
+saveWorkbook(wb, output, overwrite = TRUE)
+message("Created: ", output, " (", i, " files imported)")
+```
+
+
+# Session Information
+
+```{r results="verbatim"}
+sessionInfo()
+```
