@@ -45,6 +45,7 @@ rgSet@annotation
 
 # --- QC: detection p-values ---
 detP = minfi::detectionP(rgSet)
+detP[detP==0] = min(detP[detP>0])
 
 # # Samples: drop those with a high mean detection p-value
 # bad_samples = colMeans(detP) > 0.03
@@ -126,9 +127,6 @@ saveRDS(beta38, paste0("datashare/", gse, "/beta_matrix.rds"))
 saveRDS(mval38, paste0("datashare/", gse, "/mval_matrix.rds"))
 saveRDS(anno38, paste0("datashare/", gse, "/anno38_df.rds")  )
 saveRDS(detP  , paste0("datashare/", gse, "/pval_matrix.rds"))
-
-
-
 ```
 
 
@@ -144,9 +142,9 @@ pval = readRDS(paste0("datashare/", gse, "/pval_matrix.rds"))
 
 ```{r fingerprint, eval=TRUE}
 # layout(matrix(1:2, 1), respect=TRUE)
-# plot(density(detP))
-# detP[detP==0] = min(detP[detP>0])
-# plot(density(-log10(detP)))
+# plot(density(pval))
+# pval[pval==0] = min(pval[pval>0])
+# plot(density(-log10(pval)))
 cov = -log10(pval)
 data = as.matrix(t(cov))
 # Compute cumulative signal fractions for each row
