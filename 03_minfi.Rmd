@@ -137,6 +137,65 @@ anno = readRDS(paste0("datashare/", gse, "/anno38_df.rds"  ))
 pval = readRDS(paste0("datashare/", gse, "/pval_matrix.rds")) 
 ```
 
+## Features
+
+```{r export_features, results="verbatim"}
+library(GenomicRanges)
+
+max_gap = 999   # features separated by less than 1000 bp are merged
+
+# --- Features (one probe per line) ---
+gr = GenomicRanges::makeGRangesFromDataFrame(
+  anno,
+  keep.extra.columns = TRUE,
+  seqnames.field = "chr",
+  start.field = "start",
+  end.field = "end",
+  strand.field = "strand"
+)
+gr$name = gr$probe
+gr = sort(gr)
+
+bed_features = data.frame(
+  chrom  = as.character(seqnames(gr)),
+  start  = start(gr) - 1,   # BED is 0-based
+  end    = end(gr),
+  name   = gr$name,
+  score  = 0,
+  strand = "."
+)
+write.table(bed_features, file = paste0("features_", prefix, ".bed"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+# --- Aggregated features (probes closer than max_gap are merged) ---
+regions = GenomicRanges::reduce(gr, min.gapwidth = max_gap + 1, ignore.strand = TRUE)
+
+# Number of probes and list of probe names per region
+ov = GenomicRanges::findOverlaps(gr, regions, ignore.strand = TRUE)
+regions$n_probes = tabulate(subjectHits(ov), nbins = length(regions))
+regions$name = paste0(as.character(seqnames(regions)), ":", start(regions), "-", end(regions))
+regions$probes = vapply(
+  split(gr$name[queryHits(ov)], factor(subjectHits(ov), levels = seq_along(regions))),
+  paste, collapse = ",", FUN.VALUE = character(1)
+)
+
+summary(width(regions))
+table(regions$n_probes)
+
+bed_regions = data.frame(
+  chrom  = as.character(seqnames(regions)),
+  start  = start(regions) - 1,
+  end    = end(regions),
+  name   = regions$name,
+  score  = regions$n_probes,
+  strand = "."
+)
+write.table(bed_regions, file = paste0("features_merged_", prefix, ".bed"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+# # Keep the probe -> region mapping for later use (e.g. averaging beta per region)
+# saveRDS(regions, "features_epic_merged.rds")
+
+```
+
 
 ## Fingerprint (CpG coverage)
 
@@ -150,8 +209,45 @@ data = as.matrix(t(cov))
 # Compute cumulative signal fractions for each row
 cs = t(apply(data, 1, function(x) cumsum(sort(x)) / sum(x)))
 
+e$outliers = as.factor(as.numeric(apply(cs[rownames(e),], 1, sum) < 370000))
+
+
+layout(1, respect=TRUE)
+boxplot(e[colnames(beta),]$age~e[colnames(beta),]$group, main=paste0(nrow(e), "samples"))
+
+foi = "outliers"
+layout(1, respect=TRUE)
+col = as.numeric(e[,foi])
+names(col)=rownames(e)
+matplot(t(cs), type="l", lty=1, col=adjustcolor(col, alpha.f=0.7),
+  xlab="Ranked genomic features",
+  ylab="Cumulative fraction of signal"
+)
+legend("topleft", col=1:length(levels(e[,foi])), levels(e[,foi]), pch=16, title=foi)
+
+# filters
+e[c("outliers", "patient")]
+table(e$group)
+table(e$patient)
+table(e$group, e$patient)
+e = e[-which(e$patient%in%e[e$outliers==1,]$patient),]
+table(e$group)
+table(e$patient)
+table(e$group, e$patient)
+# filtering
+beta = beta[,rownames(e)]
+mval = mval[,rownames(e)]
+pval = pval[,rownames(e)]
+# save
+saveRDS(beta, paste0("datashare/", gse, "/beta_preproc_matrix.rds"))  
+saveRDS(mval, paste0("datashare/", gse, "/mval_preproc_matrix.rds"))  
+saveRDS(pval, paste0("datashare/", gse, "/pval_preproc_matrix.rds")) 
+
+layout(1, respect=TRUE)
+boxplot(e[colnames(beta),]$age~e[colnames(beta),]$group, main=paste0(nrow(e), "samples"))
+
 fois = factoi[sapply(factoi, function(fa) {class(e[[fa]])})=="factor"]
-for (foi in c("null", fois)) {
+for (foi in c("outliers" , fois)) {
   layout(1, respect=TRUE)
   col = as.numeric(e[,foi])
   names(col)=rownames(e)
